@@ -1,0 +1,140 @@
+---
+title: "Dataprosjekt"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(readr)
+library(tidyr)
+library(splitstackshape)
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(plyr)
+
+Unemp_OECD <- read_csv("https://raw.githubusercontent.com/Derraz91/Data-prosjekt/master/Unemployment2000-2018.csv")
+
+#Removing quotation marks, does not remove it from colnames
+Unemp_OECD <- as.data.frame(sapply(Unemp_OECD, function(x) gsub("\"", "", x)))
+
+#Split up colnames
+Unemp_OECD <- splitstackshape::cSplit(Unemp_OECD, names(Unemp_OECD))
+
+#Changing colnames
+names(Unemp_OECD)[1] <- paste("Location")
+names(Unemp_OECD)[2] <- paste("Indicator")  
+names(Unemp_OECD)[3] <- paste("Subject")
+names(Unemp_OECD)[4] <- paste("Measure")  
+names(Unemp_OECD)[5] <- paste("Frequency")  
+names(Unemp_OECD)[6] <- paste("Time")
+names(Unemp_OECD)[7] <- paste("Value")
+names(Unemp_OECD)[8] <- paste("Flag_Codes")
+
+#Removing uninteresting columns
+Unemp_OECD$Flag_Codes = NULL
+Unemp_OECD$Indicator = NULL
+Unemp_OECD$Subject = NULL
+Unemp_OECD$Measure = NULL
+Unemp_OECD$Frequency = NULL
+
+#Setting column Location as.character
+Unemp_OECD$Location <- as.character(Unemp_OECD$Location)
+
+#Seperating Year and Quartile
+Unemp_OECD <- separate(Unemp_OECD, Time, into = c("Year", "Quartile"), sep= "-")
+
+#Changing Qartile to month and day
+Unemp_OECD$Quartile <- str_replace(Unemp_OECD$Quartile, "Q1", "03-31")
+Unemp_OECD$Quartile <- str_replace(Unemp_OECD$Quartile, "Q2", "06-30")
+Unemp_OECD$Quartile <- str_replace(Unemp_OECD$Quartile, "Q3", "09-30")
+Unemp_OECD$Quartile <- str_replace(Unemp_OECD$Quartile, "Q4", "12-31")
+
+#Uniting year with month and day
+Unemp_OECD <- unite(Unemp_OECD, "Time", c("Year","Quartile"), sep = "-")
+
+#Setting it as.Date
+Unemp_OECD$Time <- as.Date(Unemp_OECD$Time)
+
+
+#Filtering for every country of interest
+#Average for 28 EU countries
+Unemp_EU28 <- filter(Unemp_OECD, Location == "EU28")
+#Only data since 2005
+
+#We'll be filtering the previous years out in the countries of interest
+
+#Irland
+Unemp_IRL <- filter(Unemp_OECD, Location == "IRL")
+Unemp_IRL <- filter(Unemp_IRL, Time >= as.Date("2005-03-31"))
+#France
+Unemp_FRA <- filter(Unemp_OECD, Location == "FRA")
+Unemp_FRA <- filter(Unemp_FRA, Time >= as.Date("2005-03-31"))
+#Germany
+Unemp_DEU <- filter(Unemp_OECD, Location == "DEU")
+Unemp_DEU <- filter(Unemp_DEU, Time >= as.Date("2005-03-31"))
+#Italy
+Unemp_ITA <- filter(Unemp_OECD, Location == "ITA")
+Unemp_ITA <- filter(Unemp_ITA, Time >= as.Date("2005-03-31"))
+#Great Britain
+Unemp_GBR <- filter(Unemp_OECD, Location == "GBR")
+Unemp_GBR <- filter(Unemp_GBR, Time >= as.Date("2005-03-31"))
+#Spain
+Unemp_ESP <- filter(Unemp_OECD, Location == "ESP")
+Unemp_ESP <- filter(Unemp_ESP, Time >= as.Date("2005-03-31"))
+#Russia
+Unemp_RUS <- filter(Unemp_OECD, Location == "RUS")
+Unemp_RUS <- filter(Unemp_RUS, Time >= as.Date("2005-03-31"))
+#United states of America
+Unemp_USA <- filter(Unemp_OECD, Location == "USA")
+Unemp_USA <- filter(Unemp_USA, Time >= as.Date("2005-03-31"))
+#Canada
+Unemp_CAN <- filter(Unemp_OECD, Location == "CAN")
+Unemp_CAN <- filter(Unemp_CAN, Time >= as.Date("2005-03-31"))
+#Greece
+Unemp_GRC <- filter(Unemp_OECD, Location == "GRC")
+Unemp_GRC <- filter(Unemp_GRC, Time >= as.Date("2005-03-31"))
+#Norway
+Unemp_NOR <- filter(Unemp_OECD, Location == "NOR")
+Unemp_NOR <- filter(Unemp_NOR, Time >= as.Date("2005-03-31"))
+
+
+#Merging into one dataframe
+Merged <- join_all(list(Unemp_CAN,Unemp_DEU,Unemp_ESP,Unemp_EU28, Unemp_FRA, Unemp_GBR, 
+                    Unemp_GRC, Unemp_IRL, Unemp_ITA, Unemp_NOR, Unemp_RUS, Unemp_USA), 
+               by = "Location", type = 'full')
+```
+
+
+
+## Hva vi skal se på
+
+- Arbeidsledigheten rundt finanskrisa
+- 
+
+
+## Arbeidsledighet i utvalgte land
+```{r}
+ggplot(data = Merged, aes(Time, Value, color = Location))+
+  geom_line(size = 2)+
+  theme_classic()+
+  scale_y_continuous(breaks=seq(0,30,5))+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  labs(title = "Unemployment rates between 2005 and 2018",
+       x = "Year", y = "% Unemployed")+
+  scale_color_manual(values=c("Black", "Blue", "Brown", "Red", "Yellow", "Pink",
+                              "Orange", "Grey", "Purple","Navy", "Cyan",
+                              "Mediumvioletred"))
+
+#Making a new dataframe sorting by value
+Byvalue <- Merged[order(Merged$Value),]
+```
+
+
+
+## Høyeste arbeidsledighet
+
+```{r}
+tail(Byvalue)
+```
+
