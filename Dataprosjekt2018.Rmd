@@ -1,6 +1,7 @@
 ---
 title: "Hvordan land ble påvirket av finanskrisa"
 output: ioslides_presentation
+runtime: shiny
 ---
 
 ```{r setup, include=FALSE}
@@ -12,6 +13,7 @@ library(tidyverse)
 library(lubridate)
 library(scales)
 library(plyr)
+library(ggvis)
 
 Unemp_OECD <- read_csv("https://raw.githubusercontent.com/Derraz91/Data-prosjekt/master/Unemployment2000-2018.csv")
 
@@ -103,7 +105,13 @@ Unemp_NOR <- filter(Unemp_NOR, Time >= as.Date("2005-03-31"))
 Merged <- join_all(list(Unemp_CAN,Unemp_DEU,Unemp_ESP,Unemp_EU28, Unemp_FRA, Unemp_GBR, 
                     Unemp_GRC, Unemp_IRL, Unemp_ITA, Unemp_NOR, Unemp_RUS, Unemp_USA), 
                by = "Location", type = 'full')
+
+
+#Making a vector for ggvis graph
+Location <- as.vector(unique(Merged$Location))
+
 ```
+
 
 
 
@@ -131,6 +139,16 @@ Byvalue <- Merged[order(Merged$Value),]
 ```
 
 
+## ggvis test
+```{r}
+Merged %>%
+  ggvis(~Time, ~Value) %>%
+  filter(Location == eval(input_select(
+    choices = Location,
+    selected = "NOR",
+    label = "Country"))) %>%
+  layer_paths()
+```
 
 ## Høyeste arbeidsledighet
 
