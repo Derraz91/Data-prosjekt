@@ -1,0 +1,401 @@
+---
+title: "Dataproject"
+author: "Fredrik Olsen, Anass Derraz and John Rejor Myran Øverås"
+output: 
+  html_document: 
+    fig_height: 6
+    fig_width: 7
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+#install.packages("pacman")
+library(pacman)
+p_load(readr, tidyr, splitstackshape, tidyverse, lubridate, plyr, dplyr,
+       scales, ggvis, stringr, zoo, directlabels)
+
+
+Unemp_OECD <- read_csv("https://raw.githubusercontent.com/Derraz91/Data-prosjekt/master/Unemployment2000-2018.csv")
+
+#Removing quotation marks, does not remove it from colnames
+Unemp_OECD <- as.data.frame(sapply(Unemp_OECD, function(x) gsub("\"", "", x)))
+
+#Split up colnames
+Unemp_OECD <- splitstackshape::cSplit(Unemp_OECD, names(Unemp_OECD))
+
+
+#Removing uninteresting columns
+Unemp_OECD <- Unemp_OECD[, -c(2:5, 8)]
+
+#Changing colnames
+colnames(Unemp_OECD) <- c("Location", "Time", "Value")
+
+#Setting column Location as.character
+Unemp_OECD$Location <- as.character(Unemp_OECD$Location)
+
+#Changing Qartile to month and day
+Unemp_OECD$Time <- as.Date(as.yearqtr(Unemp_OECD$Time, format = "%Y-Q%q"))
+
+
+#Filtering for every country of interest
+#Only data since 2005 for EU28, so doing the same for other countries
+Countries <- c("IRL", "FRA", "DEU", "ITA", "GBR", "ESP", "USA", "GRC",
+               "NOR", "EU28", "AUS", "DNK")
+
+Unemp_filtered <- Unemp_OECD %>%
+  filter(Location %in% Countries)
+
+
+#Just in case since EU28 only has data since 2005
+Unemp_filtered05 <- Unemp_OECD %>%
+  filter(Location %in% Countries & Time >= as.Date("2005-01-01"))
+```
+
+
+```{r setup2, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+GOV_DEBT <- read_csv("https://raw.githubusercontent.com/Derraz91/Data-prosjekt/master/Gov_debt%202000-2018.csv")
+
+#Removing quotation marks, does not remove it from colnames
+GOV_DEBT <- as.data.frame(sapply(GOV_DEBT, function(x) gsub("\"", "", x)))
+
+#Split up colnames
+GOV_DEBT <- splitstackshape::cSplit(GOV_DEBT, names(GOV_DEBT))
+
+#Removing uninteresting columns
+GOV_DEBT <- GOV_DEBT[, -c(2:5)]
+
+#Changing colnames
+colnames(GOV_DEBT) <- c("Location", "Time", "Value")
+
+#Setting column Location as.character
+GOV_DEBT$Location <- as.character(GOV_DEBT$Location)
+
+#Changing yearly data to add month and day
+GOV_DEBT$Time <- as.Date(paste0(GOV_DEBT$Time, "-01-01"))
+
+GOV_DEBT_filtered <- GOV_DEBT %>%
+  filter(Location %in% Countries)
+
+GOV_DEBT_filtered05 <- GOV_DEBT %>%
+  filter(Location %in% Countries & Time >= as.Date("2005-01-01"))
+```
+
+
+```{r setup3, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+Stats_obligasjoner_long_term <- read.csv("https://raw.githubusercontent.com/Johnrejor/lecture_3.0/master/Stats%20obligasjoner%20long%20term.csv")
+Stats_obligasjoner_long_term <- as.data.frame(sapply(Stats_obligasjoner_long_term, function(x) gsub("\"", "", x)))
+
+Stats_obligasjoner_long_term <- splitstackshape::cSplit(Stats_obligasjoner_long_term, names(Stats_obligasjoner_long_term)) 
+
+#Removing uninteresting columns
+Stats_obligasjoner_long_term<- Stats_obligasjoner_long_term[, -c(2:5)]
+
+#Changing colnames
+colnames(Stats_obligasjoner_long_term) <- c("Location", "Time", "Value")
+
+
+
+Stats_obligasjoner_long_term$Location <- as.character(Stats_obligasjoner_long_term$Location)  
+Stats_obligasjoner_long_term$Time <- as.Date(as.yearmon(Stats_obligasjoner_long_term$Time))
+
+Stats_obligasjoner_long_term_f <- Stats_obligasjoner_long_term %>%
+  filter(Location %in% Countries)
+
+Stats_obligasjoner_long_term_f05 <- Stats_obligasjoner_long_term %>%
+  filter(Location %in% Countries & Time >= as.Date("2005-01-01"))
+```
+
+
+```{r setup4, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+hushold_gjeld <- read_csv("https://raw.githubusercontent.com/Johnrejor/lecture_3.0/master/hushold%20gjeld.csv")
+
+#Removing quotation marks, does not remove it from colnames
+hushold_gjeld <- as.data.frame(sapply(hushold_gjeld, function(x) gsub("\"", "", x)))
+
+#Split up colnames
+hushold_gjeld <- splitstackshape::cSplit(hushold_gjeld, names(hushold_gjeld))
+
+
+#Removing uninteresting columns
+hushold_gjeld <- hushold_gjeld[, -c(2:5)]
+
+#Changing colnames
+colnames(hushold_gjeld) <- c("Location", "Time", "Value")
+
+#Setting column Location as.character
+hushold_gjeld$Location <- as.character(hushold_gjeld$Location)
+
+hushold_gjeld$Time <- as.Date(paste0(hushold_gjeld$Time, "-01-01"))
+
+hushold_gjeld_f <- hushold_gjeld %>%
+  filter(Location %in% Countries)
+
+hushold_gjeld_f05 <- hushold_gjeld %>%
+  filter(Location %in% Countries & Time >= as.Date("2005-01-01"))
+
+
+
+
+GDP_percap1 <- read_csv("https://raw.githubusercontent.com/Johnrejor/lecture_3.0/master/GDP%20per%20capita%20from%20OECD.csv")
+
+GDP_percap1 <- as.data.frame(sapply(GDP_percap1, function(x) gsub("\"", "", x)))
+
+GDP_percap1 <- splitstackshape::cSplit(GDP_percap1, names(GDP_percap1)) 
+
+#Removing uninteresting columns
+GDP_percap1<- GDP_percap1[, -c(2:5, 8)]
+
+#Changing colnames
+colnames(GDP_percap1) <- c("Location", "Time", "Value")
+
+#Setting column Location as.character
+GDP_percap1$Location <- as.character(GDP_percap1$Location)
+
+GDP_percap1$Time <- as.Date(as.yearmon(GDP_percap1$Time))
+
+GDP_percap_f <- GDP_percap1 %>%
+  filter(Location %in% Countries)
+
+GDP_percap_f05 <- GDP_percap1 %>%
+  filter(Location %in% Countries & Time >= as.Date("2005-01-01"))
+
+```
+
+
+```{r setup5, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+House_debt_unemp <- left_join(hushold_gjeld_f, Unemp_filtered, by = c("Location", "Time"))
+
+
+colnames(House_debt_unemp) <- c("Location", "Time", "Household_debt", "Unemployment")
+```
+
+## Unemployment ggplot
+```{r}
+ggplot(data = Unemp_filtered05, aes(Time, Value, color = Location))+
+  geom_line(size = 2)+
+  theme_classic()+
+  scale_y_continuous(breaks=seq(0,30,5))+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  labs(title = "Unemployment rates between 2005 and 2018",
+       x = "Year", y = "% Unemployed")+
+  scale_color_manual(values=c("Black", "Blue", "Brown", "Red", "Yellow", "Pink",
+                              "Orange", "Grey", "Purple","Navy", "Cyan",
+                              "Mediumvioletred"))
+```
+
+## Unemployment checkbox
+```{r}
+Unemp_filtered05 %>%
+  group_by(Location) %>%
+  ggvis(~Time, ~Value) %>%
+  filter(Location %in% eval(input_checkboxgroup(
+    choices = unique(Unemp_filtered$Location),
+    label = "Location"))) %>%
+  layer_paths(stroke = ~Location)
+```
+
+## Government debt ggplot
+```{r}
+ggplot(data = GOV_DEBT_filtered, aes(Time, Value, color = Location))+
+  geom_line(size = 2)+
+  theme_classic()+
+  scale_y_continuous(breaks=seq(0,200,10))+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  labs(title = "Government debt rates between 2005 and 2018",
+       x = "Year", y = "% of GDP")+
+  scale_color_manual(values=c("Black", "Blue", "Brown", "Red", "Yellow", "Pink",
+                              "Orange", "Grey", "Purple","Navy", "Cyan",
+                              "Mediumvioletred"))
+```
+
+
+## Government debt checkbox
+```{r}
+GOV_DEBT_filtered %>%
+  group_by(Location) %>%
+  ggvis(~Time, ~Value) %>%
+  filter(Location %in% eval(input_checkboxgroup(
+    choices = unique(GOV_DEBT_filtered$Location),
+    label = "Location"))) %>%
+  layer_paths(stroke = ~Location)
+```
+
+## Obligasjoner long term ggplot
+```{r}
+ggplot(data = Stats_obligasjoner_long_term_f, aes(Time, Value, color = Location))+
+  geom_line(size = 2)+
+  theme_classic()+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  labs(title = "Bonds long term between 2005 and 2018",
+       x = "Year", y = "Value")+
+  scale_color_manual(values=c("Black", "Blue", "Brown", "Red", "Yellow", "Pink",
+                              "Orange", "Grey", "Purple","Navy", "Cyan",
+                              "Mediumvioletred"))
+```
+
+## Obligasjoner long term checkbox
+
+```{r}
+Stats_obligasjoner_long_term_f %>%
+  group_by(Location) %>%
+  ggvis(~Time, ~Value) %>%
+  filter(Location %in% eval(input_checkboxgroup(
+    choices = unique(Stats_obligasjoner_long_term_f$Location),
+    label = "Location"))) %>%
+  layer_paths(stroke = ~Location)
+```
+
+
+## Household debt ggplot
+```{r}
+ggplot(data = hushold_gjeld_f, aes(Time, Value, color = Location))+
+  geom_line(size = 2)+
+  theme_classic()+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  labs(title = "Private debts between 2005 and 2018",
+       x = "Year", y = "%")+
+  scale_color_manual(values=c("Black", "Blue", "Brown", "Red", "Yellow", "Pink",
+                              "Orange", "Grey", "Purple","Navy", "Cyan",
+                              "Mediumvioletred"))
+```
+
+## Household debt checkbox
+```{r}
+hushold_gjeld_f %>%
+  group_by(Location) %>%
+  ggvis(~Time, ~Value) %>%
+  filter(Location %in% eval(input_checkboxgroup(
+    choices = unique(hushold_gjeld_f$Location),
+    label = "Location"))) %>%
+  layer_paths(stroke = ~Location)
+```
+
+## GDP per cap ggplot
+```{r}
+ggplot(data = GDP_percap_f, aes(Time, Value, color = Location))+
+  geom_line(size = 2)+
+  theme_classic()+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  labs(title = "GDP per capital between 2005 and 2018",
+       x = "Year", y = "Value")+
+  scale_color_manual(values=c("Black", "Blue", "Brown", "Red", "Yellow", "Pink",
+                              "Orange", "Grey", "Purple","Navy", "Cyan",
+                              "Mediumvioletred"))
+```
+
+## GDP per cap checkbox
+```{r}
+GDP_percap_f %>%
+  group_by(Location) %>%
+  ggvis(~Time, ~Value) %>%
+  filter(Location %in% eval(input_checkboxgroup(
+    choices = unique(GDP_percap_f$Location),
+    label = "Location"))) %>%
+  layer_paths(stroke = ~Location)
+```
+
+
+## Unemployment rates and Household debt
+## Greece
+```{r}
+House_debt_unemp %>%
+  filter(Location == "GRC") %>%
+  ggplot(aes(x = Time))+
+  geom_line(aes(y = Household_debt), color = "Blue", size = 2)+
+  geom_line(aes(y = Unemployment),color = "Red", size = 2)+
+  theme_classic()+
+  scale_y_continuous(trans="log10")+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  geom_dl(aes(y = Household_debt, label = "Household_debt"), method = list(dl.trans(x = x - 4, y = y - 1), "last.points"))+
+  geom_dl(aes(y = Unemployment, label = "Unemployment"), method = list(dl.trans(x = x - 5, y = y + 1), "last.points"))+
+  labs(title = "Unemployment rates and Household debt as % of GDP",
+       x = "Year", y = "% on a log10 scale")
+```
+
+## Norway
+```{r}
+House_debt_unemp %>%
+  filter(Location == "NOR") %>%
+  ggplot(aes(x = Time))+
+  geom_line(aes(y = Household_debt), color = "Blue", size = 2)+
+  geom_line(aes(y = Unemployment),color = "Red", size = 2)+
+  theme_classic()+
+  scale_y_continuous(trans="log10")+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  geom_dl(aes(y = Household_debt, label = "Household_debt"), method = list(dl.trans(x = x - 4, y = y - 1), "last.points"))+
+  geom_dl(aes(y = Unemployment, label = "Unemployment"), method = list(dl.trans(x = x - 5, y = y + 1), "last.points"))+
+  labs(title = "Unemployment rates and Household debt as % of GDP",
+       x = "Year", y = "% on a log10 scale")
+
+```
+
+## USA
+```{r}
+House_debt_unemp %>%
+  filter(Location == "USA") %>%
+  ggplot(aes(x = Time))+
+  geom_line(aes(y = Household_debt), color = "Blue", size = 2)+
+  geom_line(aes(y = Unemployment),color = "Red", size = 2)+
+  theme_classic()+
+  scale_y_continuous(trans="log10")+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  geom_dl(aes(y = Household_debt, label = "Household_debt"), method = list(dl.trans(x = x - 4, y = y - 1), "last.points"))+
+  geom_dl(aes(y = Unemployment, label = "Unemployment"), method = list(dl.trans(x = x - 5, y = y + 2), "last.points"))+
+  labs(title = "Unemployment rates and Household debt as % of GDP",
+       x = "Year", y = "% on a log10 scale")
+```
+
+## Italy
+```{r}
+House_debt_unemp %>%
+  filter(Location == "ITA") %>%
+  ggplot(aes(x = Time))+
+  geom_line(aes(y = Household_debt), color = "Blue", size = 2)+
+  geom_line(aes(y = Unemployment),color = "Red", size = 2)+
+  theme_classic()+
+  scale_y_continuous(trans="log10")+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  geom_dl(aes(y = Household_debt, label = "Household_debt"), method = list(dl.trans(x = x - 4, y = y - 1), "last.points"))+
+  geom_dl(aes(y = Unemployment, label = "Unemployment"), method = list(dl.trans(x = x - 5, y = y + 1), "last.points"))+
+  labs(title = "Unemployment rates and Household debt as % of GDP",
+       x = "Year", y = "% on a log10 scale")
+```
+
+## Spain
+```{r}
+House_debt_unemp %>%
+  filter(Location == "ESP") %>%
+  ggplot(aes(x = Time))+
+  geom_line(aes(y = Household_debt), color = "Blue", size = 2)+
+  geom_line(aes(y = Unemployment),color = "Red", size = 2)+
+  theme_classic()+
+  scale_y_continuous(trans="log10")+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  geom_dl(aes(y = Household_debt, label = "Household_debt"), method = list(dl.trans(x = x - 4, y = y - 1), "last.points"))+
+  geom_dl(aes(y = Unemployment, label = "Unemployment"), method = list(dl.trans(x = x - 5), "last.points"))+
+  labs(title = "Unemployment rates and Household debt as % of GDP",
+       x = "Year", y = "% on a log10 scale")
+```
+
+## Australia
+```{r}
+House_debt_unemp %>%
+  filter(Location == "AUS") %>%
+  ggplot(aes(x = Time))+
+  geom_line(aes(y = Household_debt), color = "Blue", size = 2)+
+  geom_line(aes(y = Unemployment),color = "Red", size = 2)+
+  theme_classic()+
+  scale_y_continuous(trans="log10")+
+  scale_x_date(date_breaks = "2 year", labels=date_format("%Y"))+
+  geom_dl(aes(y = Household_debt, label = "Household_debt"), method = list(dl.trans(x = x - 4, y = y - 1), "last.points"))+
+  geom_dl(aes(y = Unemployment, label = "Unemployment"), method = list(dl.trans(x = x - 5, y = y + 1), "last.points"))+
+  labs(title = "Unemployment rates and Household debt as % of GDP",
+       x = "Year", y = "% on a log10 scale")
+```
+
+
